@@ -172,7 +172,7 @@ elif page == "Manage Inventory":
                         st.rerun()
 elif page == "Spare Tracking":
     st.title("📊 Activity Dashboard")
-    log_df = conn.query("SELECT * FROM logs", ttl=0)
+    log_df = conn.query("SELECT * FROM logs ORDER BY date DESC", ttl=0)
     if not log_df.empty:
         all_eqs = sorted(log_df['equipment'].dropna().unique())
         sel_eqs = st.multiselect("Focus on Equipment:", all_eqs)
