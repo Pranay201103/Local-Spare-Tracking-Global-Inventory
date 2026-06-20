@@ -132,10 +132,7 @@ elif page == "Manage Inventory":
             selected_eq = st.selectbox("Select Equipment ID:", [""] + list(df['eq_id'].unique()))
             if selected_eq:
                 eq_df = conn.query("SELECT * FROM inventory WHERE eq_id = :eq", params={"eq": selected_eq}, ttl=0)
-                with st.form("update_form"):
-                    u_data = {}
-                    u_desc = {}
-                    for i, r in eq_df.iterrows():
+                
                         with st.container(border=True):
                             details = get_display_fields(r)
                             # --- CAPTURE COMPLETE DETAIL ---
@@ -148,7 +145,7 @@ elif page == "Manage Inventory":
                             for k, v in details.items():
                                 cols[idx % 3].write(f"**{k}:** {v}")
                                 idx += 1
-                            with st.write(key=f"form_{r['id']}"):
+                            with st.form(key=f"form_{r['id']}"):
                                  new_q = st.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
                                  rsn = st.text_input(f"Reason", key=f"r_{r['id']}")
                                  if st.form_submit_button("Update Quantity"):
