@@ -170,36 +170,7 @@ with tab2:
                         else:
                             st.session_state.msg = "No changes were made."
                         st.rerun()
-elif page == "History":
-    st.title("📜 Transaction Log")
-    log_df = conn.query("SELECT * FROM logs", ttl=0)
-    if not log_df.empty:
-        all_eqs = sorted(log_df['equipment'].dropna().unique())
-        sel_eqs = st.multiselect("Filter by Equipment:", all_eqs)
-        if sel_eqs:
-            log_df = log_df[log_df['equipment'].isin(sel_eqs)].copy()
 
-        def format_spare_info(text):
-            parts = str(text).split(' | ', 1)
-            type_val = parts[0]
-            details = parts[1] if len(parts) > 1 else ""
-            return type_val, details
-
-        log_df[['Spare Type', 'Item Details']] = log_df['spare'].apply(
-            lambda x: pd.Series(format_spare_info(x))
-        )
-
-        display_df = log_df[['date', 'equipment', 'Spare Type', 'Item Details', 'old_qty', 'new_qty', 'reason']]
-        display_df = display_df.rename(columns={'date': 'Date', 'equipment': 'Equipment', 'old_qty': 'Old Qty', 'new_qty': 'New Qty', 'reason': 'Reason'})
-
-        st.dataframe(
-            display_df.sort_values(by='Date', ascending=False),
-            use_container_width=True,
-            column_config={"Item Details": st.column_config.TextColumn("Item Details", width="large")},
-            hide_index=True
-        )
-    else:
-        st.info("No transaction logs found.")
 
 elif page == "Spare Tracking":
     st.title("📊 Activity Dashboard")
