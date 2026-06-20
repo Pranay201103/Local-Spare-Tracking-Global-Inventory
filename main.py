@@ -151,7 +151,7 @@ elif page == "Manage Inventory":
                                     st.rerun()
 
         # 3. Specific Delete Action (Outside the form, but inside the loop)
-                       with st.popover("🗑️ Delete this specific spare"):
+                 with st.popover("🗑️ Delete this specific spare"):
                                  st.warning(f"Delete {r['spare_type']}?")
                                  if st.button("Confirm Delete", key=f"del_{r['id']}", type="primary"):
                                     with conn.session as s:
