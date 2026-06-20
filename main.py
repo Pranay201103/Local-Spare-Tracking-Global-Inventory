@@ -170,8 +170,6 @@ with tab2:
                         else:
                             st.session_state.msg = "No changes were made."
                         st.rerun()
-
-
 elif page == "Spare Tracking":
     st.title("📊 Activity Dashboard")
     log_df = conn.query("SELECT * FROM logs", ttl=0)
