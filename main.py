@@ -148,7 +148,7 @@ elif page == "Manage Inventory":
                             for k, v in details.items():
                                 cols[idx % 3].write(f"**{k}:** {v}")
                                 idx += 1
-                            with st.form(key=f"form_{r['id']}"):
+                            with st.write(key=f"form_{r['id']}"):
                                  new_q = st.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
                                  rsn = st.text_input(f"Reason", key=f"r_{r['id']}")
                                  if st.form_submit_button("Update Quantity"):
