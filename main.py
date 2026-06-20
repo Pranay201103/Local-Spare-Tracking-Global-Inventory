@@ -161,7 +161,7 @@ elif page == "Manage Inventory":
                                 if int(q) != int(old_q):
                                     s.execute(text("UPDATE inventory SET qty = :q WHERE id = :id"), {"q": q, "id": id})
                                     detailed_spare_info = u_desc[id]
-                                    s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'UPDATE', :o, :n, :rsn)"),
+                                    s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW()AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata', :eq, :sp, 'UPDATE', :o, :n, :rsn)"),
                                                  {"eq": selected_eq, "sp": detailed_spare_info, "o": old_q, "n": q, "rsn": rsn})
                                     updated_count += 1
                             s.commit()
