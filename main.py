@@ -148,37 +148,28 @@ elif page == "Manage Inventory":
                             for k, v in details.items():
                                 cols[idx % 3].write(f"**{k}:** {v}")
                                 idx += 1
-                            st.write("---")
-                            c1, c2, c3 = st.columns([1, 1, 1])
-                            new_q = c1.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
-                            rsn = c2.text_input(f"Reason", key=f"r_{r['id']}")
-                            u_data[r['id']] = (new_q, rsn, r['spare_type'], r['qty'])
-                    
-                    if st.form_submit_button("Save Updates"):
-                        updated_count = 0
-                        with conn.session as s:
-                            for id, (q, rsn, sp, old_q) in u_data.items():
-                                if int(q) != int(old_q):
-                                    s.execute(text("UPDATE inventory SET qty = :q WHERE id = :id"), {"q": q, "id": id})
-                                    detailed_spare_info = u_desc[id]
-                                    s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'UPDATE', :o, :n, :rsn)"),
-                                                 {"eq": selected_eq, "sp": detailed_spare_info, "o": old_q, "n": q, "rsn": rsn})
-                                    updated_count += 1
-                            s.commit()
-                        if updated_count > 0:
-                            st.session_state.msg = f"Successfully updated {updated_count} item(s)!"
-                        else:
-                            st.session_state.msg = "No changes were made."
-                        st.rerun()
-                    with st.popover("🗑️ Delete Item"):
-                        st.warning("Are you sure? This cannot be undone.")
-                        if st.form_submit_button("Confirm Delete", key=f"del_confirm_{r['id']}", type="primary"):
-                           with conn.session as s:
-                                s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
-                                s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Deleted')"),
-                      {"eq": selected_eq, "sp": u_desc[r['id']], "o": r['qty']})
-                                s.commit()
-                           st.rerun()
+                            with st.form(key=f"form_{r['id']}"):
+                                 new_q = st.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
+                                 rsn = st.text_input(f"Reason", key=f"r_{r['id']}")
+                                 if st.form_submit_button("Update Quantity"):
+                                    with conn.session as s:
+                                         s.execute(text("UPDATE inventory SET qty = :q WHERE id = :id"), {"q": new_q, "id": r['id']})
+                                         s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'UPDATE', :o, :n, :rsn)"), 
+                              {"eq": selected_eq, "sp": f"{r['spare_type']} ({r['id']})", "o": r['qty'], "n": new_q, "rsn": rsn})
+                                         s.commit()
+                                    st.success("Updated!")
+                                    st.rerun()
+
+        # 3. Specific Delete Action (Outside the form, but inside the loop)
+                            with st.popover("🗑️ Delete this specific spare"):
+                                 st.warning(f"Delete {r['spare_type']}?")
+                                 if st.button("Confirm Delete", key=f"del_{r['id']}", type="primary"):
+                                    with conn.session as s:
+                                         s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
+                                         s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Deleted')"),
+                              {"eq": selected_eq, "sp": f"{r['spare_type']} ({r['id']})", "o": r['qty']})
+                                         s.commit()
+                                    st.rerun()
 
 elif page == "History":
     st.title("📜 Transaction Log")
