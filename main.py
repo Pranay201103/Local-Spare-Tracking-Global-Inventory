@@ -133,11 +133,24 @@ elif page == "Manage Inventory":
             if selected_eq:
                 eq_df = conn.query("SELECT * FROM inventory WHERE eq_id = :eq", params={"eq": selected_eq}, ttl=0)
                 for i, r in eq_df.iterrows():
-               # 1. Display Spare Information
-                   with st.container(border=True):
-                        details = get_display_fields(r)
-                        st.write(f"### {r['spare_type']}")   
-                        for k, v in details.items(): st.write(f"**{k}:** {v}")
+                        with st.container(border=True):
+                            details = get_display_fields(r)
+                            # --- CAPTURE COMPLETE DETAIL ---
+                            desc_str = f"{r['spare_type']} | " + " | ".join([f"{k}: {v}" for k, v in details.items()])
+                            u_desc[r['id']] = desc_str
+
+                            st.write(f"### {r['spare_type']}")
+                            cols = st.columns(3)
+                            idx = 0
+                            for k, v in details.items():
+                                cols[idx % 3].write(f"**{k}:** {v}")
+                                idx += 1
+                            st.write("---")
+                            c1, c2 = st.columns(2)
+                            new_q = c1.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
+                            rsn = c2.text_input(f"Reason", key=f"r_{r['id']}")
+                            u_data[r['id']] = (new_q, rsn, r['spare_type'], r['qty'])
+
                         with st.form(key=f"form_{r['id']}"):
                                  new_q = st.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
                                  rsn = st.text_input(f"Reason", key=f"r_{r['id']}")
