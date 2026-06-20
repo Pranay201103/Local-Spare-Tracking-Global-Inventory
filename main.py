@@ -149,7 +149,7 @@ elif page == "Manage Inventory":
                                 cols[idx % 3].write(f"**{k}:** {v}")
                                 idx += 1
                             st.write("---")
-                            c1, c2 = st.columns(2)
+                            c1, c2, c3 = st.columns([1, 1, 1])
                             new_q = c1.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
                             rsn = c2.text_input(f"Reason", key=f"r_{r['id']}")
                             u_data[r['id']] = (new_q, rsn, r['spare_type'], r['qty'])
@@ -170,6 +170,16 @@ elif page == "Manage Inventory":
                         else:
                             st.session_state.msg = "No changes were made."
                         st.rerun()
+                    if c3.button("Delete Item", key=f"del_{r['id']}", type="primary"):
+                       with conn.session as s:
+                       # Delete the row by its unique ID
+                         s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
+        # Optionally log the deletion
+                         s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Item Deleted')"),
+                  {"eq": selected_eq, "sp": u_desc[r['id']], "o": r['qty']})
+                         s.commit()
+                      st.success("Item deleted successfully!")
+                      st.rerun()
 
 elif page == "History":
     st.title("📜 Transaction Log")
