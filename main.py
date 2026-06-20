@@ -126,7 +126,7 @@ elif page == "Manage Inventory":
                     # Optional: Print the real error to your console for debugging
                     # print(e)
       
-with tab2:
+    with tab2:
         df = conn.query("SELECT DISTINCT eq_id FROM inventory", ttl=0)
         if not df.empty:
             selected_eq = st.selectbox("Select Equipment ID:", [""] + list(df['eq_id'].unique()))
