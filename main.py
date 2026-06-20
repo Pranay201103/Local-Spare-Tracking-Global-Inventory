@@ -172,7 +172,7 @@ elif page == "Manage Inventory":
                         st.rerun()
                     with st.popover("🗑️ Delete Item"):
                         st.warning("Are you sure? This cannot be undone.")
-                        if st.button("Confirm Delete", key=f"del_confirm_{r['id']}", type="primary"):
+                        if st.form_submit_button("Confirm Delete", key=f"del_confirm_{r['id']}", type="primary"):
                            with conn.session as s:
                                 s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
                                 s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Deleted')"),
