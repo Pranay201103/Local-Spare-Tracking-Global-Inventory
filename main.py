@@ -170,7 +170,7 @@ elif page == "Manage Inventory":
                         else:
                             st.session_state.msg = "No changes were made."
                         st.rerun()
-                   with st.popover("🗑️ Delete Item"):
+                    with st.popover("🗑️ Delete Item"):
                         st.warning("Are you sure? This cannot be undone.")
                         if st.button("Confirm Delete", key=f"del_confirm_{r['id']}", type="primary"):
                            with conn.session as s:
