@@ -153,7 +153,7 @@ elif page == "Manage Inventory":
                             new_q = c1.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
                             rsn = c2.text_input(f"Reason", key=f"r_{r['id']}")
                             u_data[r['id']] = (new_q, rsn, r['spare_type'], r['qty'])
-
+                    
                     if st.form_submit_button("Save Updates"):
                         updated_count = 0
                         with conn.session as s:
@@ -170,16 +170,15 @@ elif page == "Manage Inventory":
                         else:
                             st.session_state.msg = "No changes were made."
                         st.rerun()
-                    if c3.popover("Delete Item", key=f"del_{r['id']}", type="primary"):
-                       with conn.session as s:
-                       # Delete the row by its unique ID
-                          s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
-        # Optionally log the deletion
-                          s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Item Deleted')"),
-                  {"eq": selected_eq, "sp": u_desc[r['id']], "o": r['qty']})
-                          s.commit()
-                       st.success("Item deleted successfully!")
-                       st.rerun()
+                   with st.popover("🗑️ Delete Item"):
+                        st.warning("Are you sure? This cannot be undone.")
+                        if st.button("Confirm Delete", key=f"del_confirm_{r['id']}", type="primary"):
+                           with conn.session as s:
+                                s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
+                                s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Deleted')"),
+                      {"eq": selected_eq, "sp": u_desc[r['id']], "o": r['qty']})
+                                s.commit()
+                           st.rerun()
 
 elif page == "History":
     st.title("📜 Transaction Log")
