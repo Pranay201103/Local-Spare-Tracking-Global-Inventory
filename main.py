@@ -97,7 +97,7 @@ elif page == "Manage Inventory":
             ref_date = st.date_input("Date:", key="add_date").strftime("%Y-%m-%d")
         qty = st.number_input("Total Quantity:", min_value=0, key="add_qty")
         loc = st.text_input("Storage Location:", key="add_loc")
-       if st.button("Save Entry"):
+        if st.button("Save Entry"):
             if not eq_id:
                 st.error("Equipment ID is mandatory!")
             else:
