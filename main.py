@@ -4,13 +4,13 @@ import plotly.express as px
 from sqlalchemy import text
 from datetime import datetime
 
-# Initialize Connection
+# Initialize PostgreSQL Connection
 conn = st.connection("postgresql", type="sql")
 
 # --- HELPERS ---
 def get_display_fields(row):
     row_dict = row.to_dict()
-    exclude = ['id', 'eq_id', 'eq_type', 'qty', 'spare_type', 'description']
+    exclude = ['id', 'eq_id', 'eq_type', 'qty', 'spare_type']
     return {k.replace('_', ' ').title(): v for k, v in row_dict.items() if v and str(v) != 'nan' and k not in exclude}
 
 # --- UI CONFIG ---
@@ -21,6 +21,7 @@ page = st.sidebar.radio("Navigation", ["Dashboard", "Manage Inventory", "History
 # --- DASHBOARD ---
 if page == "Dashboard":
     st.title("📊 Equipment Inventory Dashboard")
+    # ttl=0 ensures live data fetching
     all_df = conn.query("SELECT * FROM inventory", ttl=0)
     if not all_df.empty:
         c1, c2 = st.columns(2)
@@ -30,6 +31,7 @@ if page == "Dashboard":
         eq_qty = all_df.groupby('eq_type')['qty'].sum().reset_index()
         fig2 = px.pie(eq_qty, names='eq_type', values='qty', title="Qty by Equipment")
         c2.plotly_chart(fig2, use_container_width=True)
+    
     st.divider()
     search = st.text_input("🔍 Search Equipment ID:").upper().strip()
     if search:
@@ -41,7 +43,6 @@ if page == "Dashboard":
                     header = row.get('description') or "Mechanical Spare"
                     with st.expander(f"📍 {header} | Qty: {row['qty']}"):
                         for k, v in get_display_fields(row).items(): st.markdown(f"**{k}:** {v}")
-        else: st.warning("No items found.")
 
 # --- MANAGE INVENTORY ---
 elif page == "Manage Inventory":
@@ -57,7 +58,6 @@ elif page == "Manage Inventory":
         
         subtype = cat = origin = vendor = ref_date = item_detail = bearing_no = description = pulley_type = pulley_desc = seal_oem = valve_oem = None
         
-        # Original Conditional Logic Preserved
         if eq_type == "Pump" and spare_type == "Seal":
             subtype = st.selectbox("Sub-type:", ["Cartridge seal", "Seal spare"], key="add_sub")
             if subtype == "Seal spare": cat = st.selectbox("Category:", ["Faces", "Packings"], key="add_cat"); item_detail = st.text_input(f"Enter {cat} details:", key="add_det")
@@ -71,17 +71,19 @@ elif page == "Manage Inventory":
         elif eq_type == "AFC" and spare_type == "Pulley": pulley_type = st.selectbox("Pulley Type:", ["Motor pulley", "Fan pulley"], key="add_p_type"); pulley_desc = st.text_input("Enter Pulley Description:", key="add_p_desc"); origin = st.selectbox("Origin:", ["OEM", "Locally made"], key="add_orig")
         
         if origin and origin != "OEM" and spare_type != "Valve": vendor = st.text_input("Vendor Name:", key="add_ven"); ref_date = str(st.date_input("Date:", key="add_date"))
-        
         qty = st.number_input("Total Quantity:", min_value=0, key="add_qty")
         loc = st.text_input("Storage Location:", key="add_loc")
         
         if st.button("Save Entry"):
             with conn.session as s:
-                s.execute(text("""INSERT INTO inventory (eq_id, eq_type, spare_type, subtype, category, item_detail, origin, vendor, ref_date, qty, storage_loc, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem) 
-                                VALUES (:id, :et, :st, :sub, :cat, :det, :ori, :ven, :ref, :qty, :loc, :bn, :desc, :pt, :pd, :soem, :voem)"""),
-                          {"id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype, "cat": cat, "det": item_detail, "ori": origin, "ven": vendor, "ref": ref_date, "qty": qty, "loc": loc, "bn": bearing_no, "desc": description, "pt": pulley_type, "pd": pulley_desc, "soem": seal_oem, "voem": valve_oem})
-                s.commit()
-            st.session_state.msg = "Added successfully!"; st.rerun()
+                chk_query = text("SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND COALESCE(bearing_no,'')=:bn")
+                count = conn.query(chk_query, params={"id": eq_id, "et": eq_type, "st": spare_type, "bn": bearing_no or ""}).iloc[0,0]
+                if count > 0: st.error("Duplicate Error: This item exists.")
+                else:
+                    s.execute(text("""INSERT INTO inventory (eq_id, eq_type, spare_type, subtype, category, item_detail, origin, vendor, ref_date, qty, storage_loc, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem) 
+                                    VALUES (:id, :et, :st, :sub, :cat, :det, :ori, :ven, :ref, :qty, :loc, :bn, :desc, :pt, :pd, :soem, :voem)"""),
+                              {"id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype, "cat": cat, "det": item_detail, "ori": origin, "ven": vendor, "ref": ref_date, "qty": qty, "loc": loc, "bn": bearing_no, "desc": description, "pt": pulley_type, "pd": pulley_desc, "soem": seal_oem, "voem": valve_oem})
+                    s.commit(); st.session_state.msg = "Saved!"; st.rerun()
 
     with tab2:
         df = conn.query("SELECT DISTINCT eq_id FROM inventory", ttl=0)
@@ -102,10 +104,9 @@ elif page == "Manage Inventory":
                             for id, (q, rsn, sp, old_q) in u_data.items():
                                 if int(q) != int(old_q):
                                     s.execute(text("UPDATE inventory SET qty = :q WHERE id = :id"), {"q": q, "id": id})
-                                    s.execute(text("INSERT INTO logs (date, equipment, spare, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, :o, :n, :rsn)"),
-                                              {"eq": selected_eq, "sp": f"{sp} Updated", "o": old_q, "n": q, "rsn": rsn})
-                            s.commit()
-                        st.rerun()
+                                    s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'UPDATE', :o, :n, :rsn)"),
+                                              {"eq": selected_eq, "sp": sp, "o": old_q, "n": q, "rsn": rsn})
+                            s.commit(); st.rerun()
 
 # --- HISTORY & TRACKING ---
 elif page == "History":
@@ -119,4 +120,4 @@ elif page == "Spare Tracking":
     for _, row in log_df.iterrows():
         with st.container(border=True):
             st.write(f"**{row['equipment']}** | {row['date']}")
-            st.write(f"Item: {row['spare']} | Qty Change: {row['old_qty']} -> {row['new_qty']} | Reason: {row['reason']}")
+            st.write(f"Change: {row['old_qty']} -> {row['new_qty']} | Reason: {row['reason']}")
