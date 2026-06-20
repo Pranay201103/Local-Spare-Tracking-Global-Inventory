@@ -138,7 +138,7 @@ elif page == "Manage Inventory":
                         details = get_display_fields(r)
                         st.write(f"### {r['spare_type']}")   
                         for k, v in details.items(): st.write(f"**{k}:** {v}")
-                            with st.form(key=f"form_{r['id']}"):
+                        with st.form(key=f"form_{r['id']}"):
                                  new_q = st.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
                                  rsn = st.text_input(f"Reason", key=f"r_{r['id']}")
                                  if st.form_submit_button("Update Quantity"):
