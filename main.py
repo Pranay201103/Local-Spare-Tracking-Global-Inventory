@@ -111,7 +111,7 @@ elif page == "Manage Inventory":
                 
                 if count > 0:
                     # This will now display the message without triggering an error
-                    st.info("⚠️ This entry already exists! Please use the 'Update Quantity' tab.")
+                    st.error("⚠️ This entry already exists! Please use the 'Update Quantity' tab.")
                 else:
                     # 2. Only attempt insert if count is 0
                     with conn.session as s:
