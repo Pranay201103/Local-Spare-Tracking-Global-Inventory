@@ -113,6 +113,12 @@ elif page == "Manage Inventory":
                         s.commit();
                     st.session_state.msg = "Added successfully!";
                     st.rerun()
+        if "temp_msg" in st.session_state:
+            st.info(st.session_state.temp_msg)
+            # Clear it after showing once
+            if st.button("Clear Message"):
+                del st.session_state.temp_msg
+                st.rerun()
     with tab2:
         df = conn.query("SELECT DISTINCT eq_id FROM inventory", ttl=0)
         if not df.empty:
