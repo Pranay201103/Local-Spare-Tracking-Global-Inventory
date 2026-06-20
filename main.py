@@ -170,7 +170,7 @@ elif page == "Manage Inventory":
                         else:
                             st.session_state.msg = "No changes were made."
                         st.rerun()
-                    if c3.button("Delete Item", key=f"del_{r['id']}", type="primary"):
+                    if c3.form_submit_button("Delete Item", key=f"del_{r['id']}", type="primary"):
                        with conn.session as s:
                        # Delete the row by its unique ID
                           s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
