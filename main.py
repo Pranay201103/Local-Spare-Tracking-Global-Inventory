@@ -5,7 +5,7 @@ import plotly.express as px
 from sqlalchemy import text
 
 # --- CONNECTION ---
-# Requires [connections.postgresql] in .streamlit/secrets.toml
+# Replaces sqlite3.connect calls
 conn = st.connection("postgresql", type="sql")
 
 # --- 2. HELPERS ---
@@ -41,9 +41,11 @@ if page == "Dashboard":
                 st.subheader(f"📦 {spare}s")
                 for _, row in df[df['spare_type'] == spare].iterrows():
                     if spare == 'Mechanical spares':
-                        header = row['description'] if row.get('description') and str(row['description']) != 'nan' else "Mechanical Spare"
+                        header = row['description'] if row.get('description') and str(
+                            row['description']) != 'nan' else "Mechanical Spare"
                     else:
-                        header = " | ".join([str(row[c]) for c in ['subtype', 'item_detail'] if row.get(c) and str(row[c]) != 'nan']) or "Standard"
+                        header = " | ".join([str(row[c]) for c in ['subtype', 'item_detail'] if
+                                             row.get(c) and str(row[c]) != 'nan']) or "Standard"
                     with st.expander(f"📍 {header} | Qty: {row['qty']}"):
                         for k, v in get_display_fields(row).items(): st.markdown(f"**{k}:** {v}")
         else:
@@ -62,7 +64,8 @@ elif page == "Manage Inventory":
         options = {"Pump": ["Seal", "Bearing", "Mechanical spares"],
                    "Compressor": ["Valve", "Bearing", "Mechanical spares"],
                    "AFC": ["Belt", "Pulley", "Bearing", "Mechanical spares"]}
-        spare_type = st.selectbox("Spare Type:", options.get(eq_type, ["Bearing", "Mechanical spares"]), key="add_spare")
+        spare_type = st.selectbox("Spare Type:", options.get(eq_type, ["Bearing", "Mechanical spares"]),
+                                  key="add_spare")
         subtype, cat, origin, vendor, ref_date, item_detail, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem = [None] * 12
         if eq_type == "Pump" and spare_type == "Seal":
             subtype = st.selectbox("Sub-type:", ["Cartridge seal", "Seal spare"], key="add_sub")
@@ -98,16 +101,18 @@ elif page == "Manage Inventory":
             if not eq_id:
                 st.error("Equipment ID is mandatory!")
             else:
-                query_chk = text('SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND COALESCE(subtype,\'\')=:sub AND COALESCE(item_detail,\'\')=:det AND COALESCE(bearing_no,\'\')=:bn AND COALESCE(pulley_type,\'\')=:pt AND COALESCE(vendor,\'\')=:ven AND COALESCE(seal_oem,\'\')=:soem AND COALESCE(valve_oem,\'\')=:voem')
-                count = conn.query(query_chk, params={"id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype or "", "det": item_detail or "", "bn": bearing_no or "", "pt": pulley_type or "", "ven": vendor or "", "soem": seal_oem or "", "voem": valve_oem or ""}).iloc[0,0]
+                # Replaced sqlite logic with pg-compatible query
+                query_chk = 'SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND (COALESCE(subtype,\'\')=:sub) AND (COALESCE(item_detail,\'\')=:det) AND (COALESCE(bearing_no,\'\')=:bn) AND (COALESCE(pulley_type,\'\')=:pt) AND (COALESCE(vendor,\'\')=:ven) AND (COALESCE(seal_oem,\'\')=:soem) AND (COALESCE(valve_oem,\'\')=:voem)'
+                count = conn.query(query_chk, params={"id": eq_id, "et": eq_type, "st": spare_type, "sub": str(subtype or ""), "det": str(item_detail or ""), "bn": str(bearing_no or ""), "pt": str(pulley_type or ""), "ven": str(vendor or ""), "soem": str(seal_oem or ""), "voem": str(valve_oem or "")}).iloc[0,0]
                 if count > 0:
                     st.error("Duplicate Error: This specific item already exists.")
                 else:
                     with conn.session as s:
                         s.execute(text("INSERT INTO inventory (eq_id, eq_type, spare_type, subtype, category, item_detail, origin, vendor, ref_date, qty, storage_loc, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem) VALUES (:id, :et, :st, :sub, :cat, :det, :ori, :ven, :ref, :qty, :loc, :bn, :desc, :pt, :pd, :soem, :voem)"),
                                   {"id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype, "cat": cat, "det": item_detail, "ori": origin, "ven": vendor, "ref": ref_date, "qty": qty, "loc": loc, "bn": bearing_no, "desc": description, "pt": pulley_type, "pd": pulley_desc, "soem": seal_oem, "voem": valve_oem})
-                        s.commit()
-                    st.session_state.msg = "Added successfully!"; st.rerun()
+                        s.commit();
+                    st.session_state.msg = "Added successfully!";
+                    st.rerun()
     with tab2:
         df = conn.query("SELECT DISTINCT eq_id FROM inventory", ttl=0)
         if not df.empty:
@@ -115,12 +120,15 @@ elif page == "Manage Inventory":
             if selected_eq:
                 eq_df = conn.query("SELECT * FROM inventory WHERE eq_id = :eq", params={"eq": selected_eq}, ttl=0)
                 with st.form("update_form"):
-                    u_data, u_desc = {}, {}
+                    u_data = {}
+                    u_desc = {}
                     for i, r in eq_df.iterrows():
                         with st.container(border=True):
                             details = get_display_fields(r)
+                            # --- CAPTURE COMPLETE DETAIL ---
                             desc_str = f"{r['spare_type']} | " + " | ".join([f"{k}: {v}" for k, v in details.items()])
                             u_desc[r['id']] = desc_str
+
                             st.write(f"### {r['spare_type']}")
                             cols = st.columns(3)
                             idx = 0
@@ -134,36 +142,72 @@ elif page == "Manage Inventory":
                             u_data[r['id']] = (new_q, rsn, r['spare_type'], r['qty'])
 
                     if st.form_submit_button("Save Updates"):
+                        updated_count = 0
                         with conn.session as s:
                             for id, (q, rsn, sp, old_q) in u_data.items():
                                 if int(q) != int(old_q):
                                     s.execute(text("UPDATE inventory SET qty = :q WHERE id = :id"), {"q": q, "id": id})
+                                    detailed_spare_info = u_desc[id]
                                     s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'UPDATE', :o, :n, :rsn)"),
-                                              {"eq": selected_eq, "sp": u_desc[id], "o": old_q, "n": q, "rsn": rsn})
+                                                 {"eq": selected_eq, "sp": detailed_spare_info, "o": old_q, "n": q, "rsn": rsn})
+                                    updated_count += 1
                             s.commit()
-                        st.session_state.msg = "Updated successfully!"; st.rerun()
+                        if updated_count > 0:
+                            st.session_state.msg = f"Successfully updated {updated_count} item(s)!"
+                        else:
+                            st.session_state.msg = "No changes were made."
+                        st.rerun()
 
 elif page == "History":
     st.title("📜 Transaction Log")
-    log_df = conn.query("SELECT * FROM logs ORDER BY date DESC", ttl=0)
+    log_df = conn.query("SELECT * FROM logs", ttl=0)
     if not log_df.empty:
         all_eqs = sorted(log_df['equipment'].dropna().unique())
         sel_eqs = st.multiselect("Filter by Equipment:", all_eqs)
-        if sel_eqs: log_df = log_df[log_df['equipment'].isin(sel_eqs)]
-        st.dataframe(log_df, use_container_width=True, hide_index=True)
-    else: st.info("No transaction logs found.")
+        if sel_eqs:
+            log_df = log_df[log_df['equipment'].isin(sel_eqs)].copy()
+
+        def format_spare_info(text):
+            parts = str(text).split(' | ', 1)
+            type_val = parts[0]
+            details = parts[1] if len(parts) > 1 else ""
+            return type_val, details
+
+        log_df[['Spare Type', 'Item Details']] = log_df['spare'].apply(
+            lambda x: pd.Series(format_spare_info(x))
+        )
+
+        display_df = log_df[['date', 'equipment', 'Spare Type', 'Item Details', 'old_qty', 'new_qty', 'reason']]
+        display_df = display_df.rename(columns={'date': 'Date', 'equipment': 'Equipment', 'old_qty': 'Old Qty', 'new_qty': 'New Qty', 'reason': 'Reason'})
+
+        st.dataframe(
+            display_df.sort_values(by='Date', ascending=False),
+            use_container_width=True,
+            column_config={"Item Details": st.column_config.TextColumn("Item Details", width="large")},
+            hide_index=True
+        )
+    else:
+        st.info("No transaction logs found.")
 
 elif page == "Spare Tracking":
     st.title("📊 Activity Dashboard")
-    log_df = conn.query("SELECT * FROM logs ORDER BY date DESC", ttl=0)
+    log_df = conn.query("SELECT * FROM logs", ttl=0)
     if not log_df.empty:
         all_eqs = sorted(log_df['equipment'].dropna().unique())
         sel_eqs = st.multiselect("Focus on Equipment:", all_eqs)
-        if sel_eqs: log_df = log_df[log_df['equipment'].isin(sel_eqs)]
+        if sel_eqs:
+            log_df = log_df[log_df['equipment'].isin(sel_eqs)]
+        log_df = log_df.sort_values(by='date', ascending=False)
+        st.subheader("Recent Activity Stream")
         for _, row in log_df.head(10).iterrows():
             with st.container(border=True):
                 col1, col2, col3 = st.columns([1, 2, 1])
-                col1.caption(row['date']); col1.metric("Equipment", row['equipment'])
-                col2.write("**Item Details**"); col2.write(row['spare'])
-                col3.metric("Change", f"{row['new_qty'] - row['old_qty']:+d}"); col3.write(f"Reason: {row['reason']}")
-    else: st.info("No activity to display yet.")
+                col1.caption(row['date'])
+                col1.metric("Equipment", row['equipment'])
+                col2.write("**Item Details**")
+                col2.write(row['spare'])
+                diff = row['new_qty'] - row['old_qty']
+                col3.metric("Change", f"{diff:+d}", delta_color="normal")
+                col3.write(f"Reason: {row['reason']}")
+    else:
+        st.info("No activity to display yet.")
