@@ -132,8 +132,7 @@ elif page == "Manage Inventory":
             selected_eq = st.selectbox("Select Equipment ID:", [""] + list(df['eq_id'].unique()))
             if selected_eq:
                 eq_df = conn.query("SELECT * FROM inventory WHERE eq_id = :eq", params={"eq": selected_eq}, ttl=0)
-                
-                        with st.container(border=True):
+                with st.container(border=True):
                             details = get_display_fields(r)
                             # --- CAPTURE COMPLETE DETAIL ---
                             desc_str = f"{r['spare_type']} | " + " | ".join([f"{k}: {v}" for k, v in details.items()])
