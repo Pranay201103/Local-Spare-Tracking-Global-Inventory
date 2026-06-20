@@ -102,29 +102,29 @@ elif page == "Manage Inventory":
             if not eq_id:
                 st.error("Equipment ID is mandatory!")
             else:
-                # 1. Run Duplicate Check
-                q_chk = "SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND (COALESCE(subtype,'')=:sub) AND (COALESCE(item_detail,'')=:det) AND (COALESCE(bearing_no,'')=:bn) AND (COALESCE(pulley_type,'')=:pt) AND (COALESCE(vendor,'')=:ven) AND (COALESCE(seal_oem,'')=:soem) AND (COALESCE(valve_oem,'')=:voem)"
-                count = conn.query(q_chk, params={"id": eq_id, "et": eq_type, "st": spare_type, "sub": str(subtype or ""), "det": str(item_detail or ""), "bn": str(bearing_no or ""), "pt": str(pulley_type or ""), "ven": str(vendor or ""), "soem": str(seal_oem or ""), "voem": str(valve_oem or "")}).iloc[0,0]
-                
-                if count > 0:
-                    # Store message in session_state instead of calling st.info directly
-                    st.session_state.duplicate_msg = "⚠️ This entry already exists! Please use the 'Update Quantity' tab."
-                    st.rerun() # Rerun to show the message
-                else:
-                    # 2. Perform Insert
+                try:
+                    # Attempt to perform the insert directly
                     with conn.session as s:
-                        s.execute(text("INSERT INTO inventory (eq_id, eq_type, spare_type, subtype, category, item_detail, origin, vendor, ref_date, qty, storage_loc, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem) VALUES (:id, :et, :st, :sub, :cat, :det, :ori, :ven, :ref, :qty, :loc, :bn, :desc, :pt, :pd, :soem, :voem)"),
-                                  {"id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype, "cat": cat, "det": item_detail, "ori": origin, "ven": vendor, "ref": ref_date, "qty": qty, "loc": loc, "bn": bearing_no, "desc": description, "pt": pulley_type, "pd": pulley_desc, "soem": seal_oem, "voem": valve_oem})
+                        s.execute(text("""
+                            INSERT INTO inventory (eq_id, eq_type, spare_type, subtype, category, item_detail, origin, vendor, ref_date, qty, storage_loc, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem) 
+                            VALUES (:id, :et, :st, :sub, :cat, :det, :ori, :ven, :ref, :qty, :loc, :bn, :desc, :pt, :pd, :soem, :voem)
+                        """), {
+                            "id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype, "cat": cat, 
+                            "det": item_detail, "ori": origin, "ven": vendor, "ref": ref_date, 
+                            "qty": qty, "loc": loc, "bn": bearing_no, "desc": description, 
+                            "pt": pulley_type, "pd": pulley_desc, "soem": seal_oem, "voem": valve_oem
+                        })
                         s.commit()
+                    
                     st.session_state.msg = "Added successfully!"
-                    if "duplicate_msg" in st.session_state: del st.session_state.duplicate_msg
                     st.rerun()
 
-        # --- DISPLAY PERSISTENT MESSAGE ---
-        if "duplicate_msg" in st.session_state:
-            st.info(st.session_state.duplicate_msg)
-            # Optional: clear it after displaying
-            # del st.session_state.duplicate_msg
+                except Exception as e:
+                    # If an error occurs (like a unique constraint violation), 
+                    # we catch it here and show your message instead of an error block.
+                    st.info("⚠️ This entry already exists! Please use the 'Update Quantity' tab.")
+                    # Optional: Print the real error to your console for debugging
+                    # print(e)
       
     with tab2:
         df = conn.query("SELECT DISTINCT eq_id FROM inventory", ttl=0)
