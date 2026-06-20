@@ -97,28 +97,30 @@ elif page == "Manage Inventory":
             ref_date = st.date_input("Date:", key="add_date").strftime("%Y-%m-%d")
         qty = st.number_input("Total Quantity:", min_value=0, key="add_qty")
         loc = st.text_input("Storage Location:", key="add_loc")
-        if st.button("Save Entry"):
+       if st.button("Save Entry"):
             if not eq_id:
                 st.error("Equipment ID is mandatory!")
             else:
-                # Replaced sqlite logic with pg-compatible query
-                query_chk = 'SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND (COALESCE(subtype,\'\')=:sub) AND (COALESCE(item_detail,\'\')=:det) AND (COALESCE(bearing_no,\'\')=:bn) AND (COALESCE(pulley_type,\'\')=:pt) AND (COALESCE(vendor,\'\')=:ven) AND (COALESCE(seal_oem,\'\')=:soem) AND (COALESCE(valve_oem,\'\')=:voem)'
-                count = conn.query(query_chk, params={"id": eq_id, "et": eq_type, "st": spare_type, "sub": str(subtype or ""), "det": str(item_detail or ""), "bn": str(bearing_no or ""), "pt": str(pulley_type or ""), "ven": str(vendor or ""), "soem": str(seal_oem or ""), "voem": str(valve_oem or "")}).iloc[0,0]
+                # 1. Query as a raw string (No text() wrapper)
+                query_chk = "SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND (COALESCE(subtype,'')=:sub) AND (COALESCE(item_detail,'')=:det) AND (COALESCE(bearing_no,'')=:bn) AND (COALESCE(pulley_type,'')=:pt) AND (COALESCE(vendor,'')=:ven) AND (COALESCE(seal_oem,'')=:soem) AND (COALESCE(valve_oem,'')=:voem)"
+                
+                # Execute the count query
+                result = conn.query(query_chk, params={"id": eq_id, "et": eq_type, "st": spare_type, "sub": str(subtype or ""), "det": str(item_detail or ""), "bn": str(bearing_no or ""), "pt": str(pulley_type or ""), "ven": str(vendor or ""), "soem": str(seal_oem or ""), "voem": str(valve_oem or "")})
+                
+                count = result.iloc[0, 0]
+                
                 if count > 0:
+                    # This will now display the message without triggering an error
                     st.info("⚠️ This entry already exists! Please use the 'Update Quantity' tab.")
                 else:
+                    # 2. Only attempt insert if count is 0
                     with conn.session as s:
                         s.execute(text("INSERT INTO inventory (eq_id, eq_type, spare_type, subtype, category, item_detail, origin, vendor, ref_date, qty, storage_loc, bearing_no, description, pulley_type, pulley_desc, seal_oem, valve_oem) VALUES (:id, :et, :st, :sub, :cat, :det, :ori, :ven, :ref, :qty, :loc, :bn, :desc, :pt, :pd, :soem, :voem)"),
                                   {"id": eq_id, "et": eq_type, "st": spare_type, "sub": subtype, "cat": cat, "det": item_detail, "ori": origin, "ven": vendor, "ref": ref_date, "qty": qty, "loc": loc, "bn": bearing_no, "desc": description, "pt": pulley_type, "pd": pulley_desc, "soem": seal_oem, "voem": valve_oem})
-                        s.commit();
-                    st.session_state.msg = "Added successfully!";
+                        s.commit()
+                    st.session_state.msg = "Added successfully!"
                     st.rerun()
-        if "temp_msg" in st.session_state:
-            st.info(st.session_state.temp_msg)
-            # Clear it after showing once
-            if st.button("Clear Message"):
-                del st.session_state.temp_msg
-                st.rerun()
+      
     with tab2:
         df = conn.query("SELECT DISTINCT eq_id FROM inventory", ttl=0)
         if not df.empty:
