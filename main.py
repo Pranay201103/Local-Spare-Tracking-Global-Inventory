@@ -173,13 +173,13 @@ elif page == "Manage Inventory":
                     if c3.button("Delete Item", key=f"del_{r['id']}", type="primary"):
                        with conn.session as s:
                        # Delete the row by its unique ID
-                         s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
+                          s.execute(text("DELETE FROM inventory WHERE id = :id"), {"id": r['id']})
         # Optionally log the deletion
-                         s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Item Deleted')"),
+                          s.execute(text("INSERT INTO logs (date, equipment, spare, change, old_qty, new_qty, reason) VALUES (NOW(), :eq, :sp, 'DELETE', :o, 0, 'Item Deleted')"),
                   {"eq": selected_eq, "sp": u_desc[r['id']], "o": r['qty']})
-                         s.commit()
-                      st.success("Item deleted successfully!")
-                      st.rerun()
+                          s.commit()
+                       st.success("Item deleted successfully!")
+                       st.rerun()
 
 elif page == "History":
     st.title("📜 Transaction Log")
