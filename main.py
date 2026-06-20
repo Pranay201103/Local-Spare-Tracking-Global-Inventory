@@ -17,7 +17,7 @@ def get_display_fields(row):
 # --- 3. APP UI ---
 st.set_page_config(layout="wide", page_title="Inventory Management")
 if 'msg' not in st.session_state: st.session_state.msg = None
-page = st.sidebar.radio("Navigation", ["Dashboard", "Manage Inventory", "History","Spare Tracking"])
+page = st.sidebar.radio("Navigation", ["Dashboard", "Manage Inventory","Spare Tracking"])
 
 # --- DASHBOARD PAGE ---
 if page == "Dashboard":
