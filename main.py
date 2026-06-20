@@ -136,7 +136,7 @@ elif page == "Manage Inventory":
                # 1. Display Spare Information
                    with st.container(border=True):
                         details = get_display_fields(r)
-                        st.write(f"### {r['spare_type']} | " + " | ".join([f"{k}: {v}" for k, v in details.items()}"])
+                        st.write(f"### {r['spare_type']} | " + " | ".join([f"{k}: {v}" for k, v in details.items()"])
                         for k, v in details.items(): st.write(f"**{k}:** {v}")
                             with st.form(key=f"form_{r['id']}"):
                                  new_q = st.number_input(f"New Qty", value=int(r['qty']), key=f"q_{r['id']}")
