@@ -104,7 +104,7 @@ elif page == "Manage Inventory":
                 # Replaced sqlite logic with pg-compatible query
                 query_chk = 'SELECT count(*) FROM inventory WHERE eq_id=:id AND eq_type=:et AND spare_type=:st AND (COALESCE(subtype,\'\')=:sub) AND (COALESCE(item_detail,\'\')=:det) AND (COALESCE(bearing_no,\'\')=:bn) AND (COALESCE(pulley_type,\'\')=:pt) AND (COALESCE(vendor,\'\')=:ven) AND (COALESCE(seal_oem,\'\')=:soem) AND (COALESCE(valve_oem,\'\')=:voem)'
                 count = conn.query(query_chk, params={"id": eq_id, "et": eq_type, "st": spare_type, "sub": str(subtype or ""), "det": str(item_detail or ""), "bn": str(bearing_no or ""), "pt": str(pulley_type or ""), "ven": str(vendor or ""), "soem": str(seal_oem or ""), "voem": str(valve_oem or "")}).iloc[0,0]
-               if count > 0:
+            if count > 0:
                 # REPLACED st.error WITH A GUIDING MESSAGE
                 st.info("⚠️ This entry already exists! Please use the 'Update Quantity' tab to adjust the stock.")
             else:
